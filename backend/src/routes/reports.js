@@ -1,0 +1,2 @@
+const router=require('express').Router();const {all}=require('../db/database');const {auth}=require('../middleware/auth');
+router.get('/inventory',auth,async(req,res,next)=>{try{res.json(await all(`SELECT p.id,p.name,p.sku,p.category,p.quantity,p.min_stock,p.price,(p.quantity*p.price) inventory_value,w.name warehouse,s.name supplier FROM products p LEFT JOIN warehouses w ON p.warehouse_id=w.id LEFT JOIN suppliers s ON p.supplier_id=s.id ORDER BY p.category,p.name`))}catch(e){next(e)}});module.exports=router;

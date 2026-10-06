@@ -1,0 +1,20 @@
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+const fs = require('fs');
+const dbDir = path.join(__dirname, '../../data');
+fs.mkdirSync(dbDir, { recursive: true });
+const db = new sqlite3.Database(path.join(dbDir, 'inventory.sqlite'));
+db.serialize(() => {
+ db.run('PRAGMA foreign_keys = ON');
+ db.run(`CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,email TEXT UNIQUE NOT NULL,password TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('admin','manager','staff')))`);
+ db.run(`CREATE TABLE IF NOT EXISTS warehouses(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,location TEXT NOT NULL,capacity INTEGER DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`);
+ db.run(`CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,email TEXT,phone TEXT,address TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`);
+ db.run(`CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,sku TEXT UNIQUE NOT NULL,category TEXT NOT NULL,quantity INTEGER NOT NULL DEFAULT 0,min_stock INTEGER NOT NULL DEFAULT 10,price REAL NOT NULL DEFAULT 0,warehouse_id INTEGER,supplier_id INTEGER,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(warehouse_id) REFERENCES warehouses(id),FOREIGN KEY(supplier_id) REFERENCES suppliers(id))`);
+ db.run(`CREATE TABLE IF NOT EXISTS stock_movements(id INTEGER PRIMARY KEY AUTOINCREMENT,product_id INTEGER NOT NULL,type TEXT NOT NULL CHECK(type IN ('IN','OUT')),quantity INTEGER NOT NULL,previous_stock INTEGER NOT NULL,new_stock INTEGER NOT NULL,reason TEXT,performed_by INTEGER,created_at TEXT DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(product_id) REFERENCES products(id),FOREIGN KEY(performed_by) REFERENCES users(id))`);
+ db.run(`CREATE TABLE IF NOT EXISTS purchase_orders(id INTEGER PRIMARY KEY AUTOINCREMENT,supplier_id INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'PENDING',total_amount REAL DEFAULT 0,order_date TEXT DEFAULT CURRENT_TIMESTAMP,notes TEXT,FOREIGN KEY(supplier_id) REFERENCES suppliers(id))`);
+ db.run(`CREATE TABLE IF NOT EXISTS inventory_logs(id INTEGER PRIMARY KEY AUTOINCREMENT,product_id INTEGER,action TEXT NOT NULL,description TEXT,performed_by INTEGER,created_at TEXT DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(product_id) REFERENCES products(id),FOREIGN KEY(performed_by) REFERENCES users(id))`);
+});
+const run=(sql,params=[])=>new Promise((res,rej)=>db.run(sql,params,function(e){e?rej(e):res({id:this.lastID,changes:this.changes})}));
+const get=(sql,params=[])=>new Promise((res,rej)=>db.get(sql,params,(e,row)=>e?rej(e):res(row)));
+const all=(sql,params=[])=>new Promise((res,rej)=>db.all(sql,params,(e,rows)=>e?rej(e):res(rows)));
+module.exports={db,run,get,all};

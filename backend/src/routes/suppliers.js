@@ -1,0 +1,4 @@
+const router=require('express').Router();const {run,get,all}=require('../db/database');const {auth,roles}=require('../middleware/auth');
+router.get('/',auth,async(req,res,next)=>{try{res.json(await all('SELECT * FROM suppliers ORDER BY id DESC'))}catch(e){next(e)}});
+router.post('/',auth,roles('admin','manager'),async(req,res,next)=>{try{const {name,email,phone,address}=req.body;if(!name)return res.status(400).json({message:'Supplier name is required'});const r=await run('INSERT INTO suppliers(name,email,phone,address) VALUES(?,?,?,?)',[name,email||'',phone||'',address||'']);res.status(201).json(await get('SELECT * FROM suppliers WHERE id=?',[r.id]))}catch(e){next(e)}});
+router.delete('/:id',auth,roles('admin'),async(req,res,next)=>{try{await run('DELETE FROM suppliers WHERE id=?',[req.params.id]);res.json({message:'Supplier deleted'})}catch(e){next(e)}});module.exports=router;
